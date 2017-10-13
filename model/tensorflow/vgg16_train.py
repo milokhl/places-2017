@@ -39,9 +39,13 @@ class VGG16:
 
         self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
 
-        for key in data_dict:
-            print(key)
-            print(data_dict[key].shape)
+        # Change output layer to have 100 classes instead of 1000.
+        modified_fc8_weights = self.data_dict['fc8'][0][:,:100]
+        modified_fc8_biases = self.data_dict['fc8'][1][0:100]
+        self.data_dict['fc8'][0] = modified_fc8_weights
+        self.data_dict['fc8'][1] = modified_fc8_biases
+        print('weights:', self.data_dict['fc8'][0].shape)
+        print('biases:', self.data_dict['fc8'][1].shape)
 
         print("Loaded in weights from .npy file.")
 
@@ -97,7 +101,6 @@ class VGG16:
         self.relu7 = tf.nn.relu(self.fc7)
 
         self.fc8 = self.fc_layer(self.relu7, "fc8")
-
         self.prob = tf.nn.softmax(self.fc8, name="prob")
         print(("build model finished: %ds" % (time.time() - start_time)))   # self.data_dict = None
         return self.prob
@@ -137,14 +140,23 @@ class VGG16:
             fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
             return fc
 
-    def get_conv_filter(self, name):
-        return tf.constant(self.data_dict[name][0], name="filter")
+    def get_conv_filter(self, name, trainable=True):
+        if trainable:
+            return tf.Variable(self.data_dict[name][0], name="filter_" + name)
+        else:
+            return tf.constant(self.data_dict[name][0], name="filter_" + name)
 
-    def get_bias(self, name):
-        return tf.constant(self.data_dict[name][1], name="biases")
+    def get_bias(self, name, trainable=True):
+        if trainable:
+            return tf.Variable(self.data_dict[name][1], name="biases_" + name)
+        else:
+            return tf.constant(self.data_dict[name][1], name="biases_" + name)
 
-    def get_fc_weight(self, name):
-        return tf.constant(self.data_dict[name][0], name="weights")
+    def get_fc_weight(self, name, trainable=True):
+        if trainable:
+            return tf.Variable(self.data_dict[name][0], name="weights_" + name)
+        else:
+            return tf.constant(self.data_dict[name][0], name="weights_" + name)
 
 # Construct dataloader
 opt_data_train = {
@@ -177,8 +189,9 @@ y = tf.placeholder(tf.int64, None)
 keep_dropout = tf.placeholder(tf.float32)
 
 # Construct model
-vgg =  VGG16(vgg16_npy_path='/todo')
-logits = VGG16.forward(x)
+vgg =  VGG16(vgg16_npy_path='./vgg16.npy')
+logits = vgg.forward(x) # returns the output layer of the network
+print('logits:', logits)
 
 # Define loss and optimizer
 loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
