@@ -17,6 +17,7 @@ import time
 
 # Dataset Parameters
 batch_size = 1024 # How many images are used for one training iteration.
+epochs_per_batch = 1
 gpu_size = 12 # How many training examples can fit on the GPU?
 load_size = 256 # Size of the images on disk.
 fine_size = 224 # Size we want the images to be for training.
@@ -27,8 +28,8 @@ num_classes = 100
 # Training Parameters
 dropout = 0.5 # Dropout, probability to keep units
 training_iters = 100000
-save_iter = 100
-validate_iter = 100
+save_iter = 20
+validate_iter = 10
 path_save = os.path.join('checkpoints/', 'vgg16_keras_latest.h5')
 start_from = ''
 
@@ -82,13 +83,17 @@ def convert_labels_categorical(labels_batch):
         labels[i][int(labels_batch[i])] = 1
     return labels
 
+def save_validation_info(validation_stats, fname='./validation_stats.txt'):
+    with open(fname, 'a') as f:
+        f.write('%f Loss: %f Top5: %f Top1: %f \n' % (time.time(), validation_stats[0], validation_stats[1], validation_stats[2]))
+
 # Main training loop.
 for t_iter in range(training_iters):
 
     # Train.
     images_batch, labels_batch = loader_train.next_batch(batch_size)
     labels = convert_labels_categorical(labels_batch) # need to make this into a one-hot vector
-    model.fit(x=images_batch, y=labels, batch_size=gpu_size, epochs=1, verbose=1)
+    model.fit(x=images_batch, y=labels, batch_size=gpu_size, epochs=epochs_per_batch, verbose=1)
 
     # Show validation stats periodically.
     if t_iter % validate_iter == 0:
@@ -99,6 +104,7 @@ for t_iter in range(training_iters):
         print('---- Validation results: -----')
         print('Loss: %f Top5: %f Top1: %f' % (validation_stats[0], validation_stats[1], validation_stats[2]))
         print('------------------------------')
+        save_validation_info(validation_stats)
     
     # Save periodically.
     if t_iter % save_iter == 0:
