@@ -152,8 +152,7 @@ def vgg_16(inputs,
     with arg_scope(
         [layers.conv2d, layers_lib.fully_connected, layers_lib.max_pool2d],
         outputs_collections=end_points_collection):
-      net = layers_lib.repeat(
-          inputs, 2, layers.conv2d, 64, [3, 3], scope='conv1')
+      net = layers_lib.repeat(inputs, 2, layers.conv2d, 64, (3, 3), scope='conv1')
       net = layers_lib.max_pool2d(net, [2, 2], scope='pool1')
       net = layers_lib.repeat(net, 2, layers.conv2d, 128, [3, 3], scope='conv2')
       net = layers_lib.max_pool2d(net, [2, 2], scope='pool2')
@@ -214,8 +213,7 @@ def vgg_19(inputs,
     with arg_scope(
         [layers.conv2d, layers_lib.fully_connected, layers_lib.max_pool2d],
         outputs_collections=end_points_collection):
-      net = layers_lib.repeat(
-          inputs, 2, layers.conv2d, 64, [3, 3], scope='conv1')
+      net = layers_lib.repeat(inputs, 2, layers.conv2d, 64, [3, 3], scope='conv1')
       net = layers_lib.max_pool2d(net, [2, 2], scope='pool1')
       net = layers_lib.repeat(net, 2, layers.conv2d, 128, [3, 3], scope='conv2')
       net = layers_lib.max_pool2d(net, [2, 2], scope='pool2')
