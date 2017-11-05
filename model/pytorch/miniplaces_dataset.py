@@ -22,6 +22,7 @@ class MiniPlacesDataset(Dataset):
                 self.lines.append(line)
         self.transform = transform
         self.root_dir = root_dir
+        print('Loaded MiniPlacesDataset.')
 
     def __len__(self):
         return len(self.lines)
