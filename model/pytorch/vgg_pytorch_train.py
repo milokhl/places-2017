@@ -75,18 +75,20 @@ def main():
     model.features = torch.nn.DataParallel(model.features)
     model.cuda()
 
-    # criterion = nn.CrossEntropyLoss()
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.005, momentum=0.9)
 
     # Parameters
     epochs = 10
+    print_freq = 20
 
     for epoch in range(epochs):
-        # train(train_loader, model, criterion, optimizer, epoch)
+
+        # Train for one epoch.
+        train(train_loader, model, criterion, optimizer, epoch, print_freq=print_freq)
 
         # Every epoch, test on the validation data.
-        prec1 = validate(val_loader, model, criterion)
+        prec1 = validate(val_loader, model, criterion, print_freq=print_freq)
         is_best = prec1 > best_prec1
         best_prec1 = max(prec1, best_prec1)
 
