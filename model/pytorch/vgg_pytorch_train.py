@@ -10,40 +10,10 @@ import vgg_pytorch as VGG
 
 from miniplaces_dataset import *
 
+from utils import accuracy, AverageMeter, save_checkpoint
+
 import time
 import shutil
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
 
 def main():
     # Apply a series of transformations to the input data.
@@ -55,11 +25,12 @@ def main():
     ) # TODO: change the STD vals
 
     # Load in the training set.
+    batch_size = 64 # Run out of memory at 80
     training_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/train.txt',
                                      '/home/milo/envs/tensorflow35/miniplaces/data/images/',
                                      transform=transform)
 
-    train_loader = torch.utils.data.DataLoader(training_set, batch_size=8, shuffle=True, num_workers=10)
+    train_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
     val_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/val.txt',
                                 '/home/milo/envs/tensorflow35/miniplaces/data/images/',
@@ -68,7 +39,7 @@ def main():
                                     transforms.ToTensor(),
                                     transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.5, 0.5, 0.5))]))
 
-    val_loader = torch.utils.data.DataLoader(training_set, batch_size=8, shuffle=True, num_workers=10)
+    val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
     # Define the model, loss, and optimizer.
     model = VGG.vgg11(num_classes=100)
@@ -193,11 +164,6 @@ def validate(val_loader, model, criterion, print_freq=1):
           .format(top1=top1, top5=top5))
 
     return top1.avg
-
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
-    if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
 
 if __name__ == '__main__':
     main()
