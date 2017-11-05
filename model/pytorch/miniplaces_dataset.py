@@ -39,3 +39,28 @@ class MiniPlacesDataset(Dataset):
             image = self.transform(image)
 
         return image, label
+
+class MiniPlacesTestSet(Dataset):
+    """
+    MiniPlaces dataset for the test set.
+    The test set only has images, which are in the images_dir.
+    There are no labels -- these are provided by the model.
+    """
+    def __init__(self, images_dir, transform=None, outfile='./predictions.txt'):
+        self.image_files = os.listdir(images_dir)
+        self.transform = transform
+        self.images_dir = images_dir
+        print('Loaded MiniPlaces test set from: %s' % self.images_dir)
+
+    def __len__(self):
+        return len(self.image_files)
+
+    def __getitem__(self, idx):
+        """ Returns a transformed image and filename. """
+        image = Image.open(os.path.join(self.images_dir, self.image_files[idx]))
+        if self.transform: image = self.transform(image)
+        return image, self.image_files[idx]
+
+    def write_labels(self, filename, labels):
+        with open(self.outfile, 'a') as f:
+            f.write('%s %s %s %s %s %s' % (filename, labels[0], labels[1], labels[2], labels[3], labels[4], labels[5]))

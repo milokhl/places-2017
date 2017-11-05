@@ -8,39 +8,53 @@ from __future__ import print_function, division
 import os, sys
 import torch
 from PIL import Image
+import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 
-class MiniPlacesTestSet(Dataset):
-  """
-  MiniPlaces dataset for the test set.
-  The test set only has images, which are in the images_dir.
-  There are no labels -- these are provided by the model.
-  """
-  def __init__(self, images_dir, transform=None):
-    self.image_files = os.listdir(images_dir)
-    self.transform = transform
-    self.images_dir = images_dir
-    print('Loaded MiniPlaces test set from: %s' % self.images_dir)
+from miniplaces_dataset import MiniPlacesTestSet
 
-  def __len__(self):
-    return len(self.image_files)
+import vgg_pytorch as VGG
 
-  def __getitem__(self, idx):
-    image = Image.open(self.image_files[idx])
-    if self.transform: image = self.transform(image)
-    return image
+def main():''
+  # Apply same transforms to the test set as the training set, except without randomized cropping and flipping.
+  transform = transforms.Compose(
+      [transforms.Resize(224),
+      transforms.ToTensor(),
+      transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.229, 0.224, 0.225))])
 
-  def write_labels(self, indexes, labels):
-  	pass
+  # Set up a test loader, which outputs image / filename pairs.
+  test_set = MiniPlacesTestSet('/home/milo/envs/tensorflow35/miniplaces/data/images/test/', transform=transform)
+  test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False, num_workers=10)
 
-# Apply same transforms to the test set as the training set, except without randomized augmentation.
-transform = transforms.Compose(
-    [transforms.Resize(224),
-    transforms.ToTensor(),
-    transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.229, 0.224, 0.225))])
+  # Define the model.
+  # Not using CUDA for now, so that we can run this while training.
+  model = VGG.vgg11(num_classes=100)
+  checkpoint_file = './model_best.pth.tar'
 
-batch_size = 58 # Run out of memory at 64...
-test_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/train.txt',
-                                 '/home/milo/envs/tensorflow35/miniplaces/data/images/',
-                                 transform=transform)
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True, num_workers=10)
+  # If checkpoint file is given, resume from there.
+  if os.path.isfile(checkpoint_file):
+    print("Loading checkpoint '{}'".format(checkpoint_file))
+    checkpoint = torch.load(checkpoint_file)
+    start_epoch = checkpoint['epoch']
+    best_prec1 = checkpoint['best_prec1']
+    model.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    print("Loaded checkpoint '{}' (epoch {}, best_prc1 {})".format(checkpoint_file, start_epoch, best_prec1))
+  else:
+    print("No checkpoint found at {}".format(checkpoint_file))
+    assert(False)
+
+  for i, data in enumerate(test_loader):
+    image, filename = data
+    inputs_var = torch.autograd.Variable(image)
+
+    predictions = model(inputs_var)
+    _, top5 = predictions.topk(5, 1, True, True)
+    top5 = top5.t()
+    print('Top5:', top5)
+
+    # Write the top 5 labels as a new line.
+    test_set.write_labels(filename, prediction)
+
+if __name__ == '__main__':
+  main()
