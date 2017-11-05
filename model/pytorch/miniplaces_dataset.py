@@ -1,7 +1,7 @@
 from __future__ import print_function, division
 import os
 import torch
-from skimage import io, transform
+from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
@@ -34,7 +34,7 @@ class MiniPlacesDataset(Dataset):
         label = label.replace('\n', '')
         label = int(label)
 
-        image = io.imread(img_path)
+        image = Image.open(img_path)
 
         if self.transform:
             image = self.transform(image)
