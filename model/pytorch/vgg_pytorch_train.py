@@ -15,23 +15,32 @@ from utils import accuracy, AverageMeter, save_checkpoint
 import time
 import shutil
 
+# TODO
+# change STD values
+# figure out LR
+# modify architecture as needed?
+# other SGD params?
+# different optimizer?
+# different loss
+
 def main():
     # Apply a series of transformations to the input data.
     transform = transforms.Compose(
         [transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.5, 0.5, 0.5))]
-    ) # TODO: change the STD vals
+        transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.229, 0.224, 0.225))]
+    )
 
     # Load in the training set.
-    batch_size = 64 # Run out of memory at 80
+    batch_size = 58 # Run out of memory at 80
     training_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/train.txt',
                                      '/home/milo/envs/tensorflow35/miniplaces/data/images/',
                                      transform=transform)
 
     train_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
+    # Load in the validation set.
     val_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/val.txt',
                                 '/home/milo/envs/tensorflow35/miniplaces/data/images/',
                                 transform=transforms.Compose([
@@ -47,20 +56,39 @@ def main():
     model.cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(model.parameters(), lr=0.005, momentum=0.9)
+    # optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
 
     # Parameters
+    start_epoch = 0
     epochs = 10
     print_freq = 20
+    is_best = True
+    best_prec1 = 0
+    checkpoint_file = './model_best.pth.tar'
 
-    for epoch in range(epochs):
+    # If checkpoint file is given, resume from there.
+    if checkpoint_file != None:
+        if os.path.isfile(checkpoint_file):
+            print("Loading checkpoint '{}'".format(checkpoint_file))
+            checkpoint = torch.load(checkpoint_file)
+            start_epoch = checkpoint['epoch']
+            best_prec1 = checkpoint['best_prec1']
+            model.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            print("Loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
+        else:
+            print("No checkpoint found at {}".format(checkpoint_file))
+
+    # Training + Validation + Saving loop.
+    for epoch in range(start_epoch, epochs):
 
         # Train for one epoch.
         train(train_loader, model, criterion, optimizer, epoch, print_freq=print_freq)
 
         # Every epoch, test on the validation data.
         prec1 = validate(val_loader, model, criterion, print_freq=print_freq)
-        is_best = prec1 > best_prec1
+        is_best = prec1 > best_prec1 # Check if top1 precision has improved.
         best_prec1 = max(prec1, best_prec1)
 
         # Save a checkpoint file.
@@ -73,14 +101,13 @@ def main():
         }, is_best)
 
 def train(train_loader, model, criterion, optimizer, epoch, print_freq=1):
+    print('Starting a new training epoch!')
     model.train()
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
-
-    is_best = True
 
     end = time.time()
     for i, data in enumerate(train_loader, 0):
@@ -123,6 +150,7 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq=1):
     print('Finished Training epoch!')
 
 def validate(val_loader, model, criterion, print_freq=1):
+    print('Starting validation!')
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -153,16 +181,17 @@ def validate(val_loader, model, criterion, print_freq=1):
 
         if i % print_freq == 0:
             print('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+              'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+              'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+               i, len(val_loader), batch_time=batch_time, loss=losses,
+               top1=top1, top5=top5))
 
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 
+    print('Finished validation!')
     return top1.avg
 
 if __name__ == '__main__':

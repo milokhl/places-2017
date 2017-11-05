@@ -6,8 +6,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
 class MiniPlacesDataset(Dataset):
-    """Face Landmarks dataset."""
-
     def __init__(self, txt_file, root_dir, transform=None):
         """
         Args:

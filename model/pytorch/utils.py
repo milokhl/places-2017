@@ -1,5 +1,6 @@
 # Utils for pytorch training
 import shutil
+import torch
 
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
@@ -34,6 +35,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+    print('Saving checkpoint...')
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'model_best.pth.tar')
