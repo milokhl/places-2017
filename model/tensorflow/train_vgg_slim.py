@@ -2,7 +2,9 @@
 import tensorflow as tf
 from DataLoader import *
 slim = tf.contrib.slim
-vgg = tf.contrib.slim.nets.vgg
+from tensorflow.contrib.slim.nets import vgg
+
+# vgg = tf.contrib.slim.nets.vgg
 
 train_log_dir = "./"
 if not tf.gfile.Exists(train_log_dir):

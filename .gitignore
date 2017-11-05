@@ -13,3 +13,5 @@ checkpoint
 *.meta
 
 *.npy
+
+data/
