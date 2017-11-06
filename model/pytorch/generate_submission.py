@@ -26,7 +26,6 @@ def main():
 
   test_set = MiniPlacesTestSet('/home/milo/envs/tensorflow35/miniplaces/data/images/test/',
             transform=transform, outfile=str(int(time.time())) + 'predictions.txt')
-  test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False, num_workers=10)
 
   # Define the model.
   # Not using CUDA for now, so that we can run this while training.
@@ -48,8 +47,9 @@ def main():
     print("No checkpoint found at {}".format(checkpoint_file))
     assert(False)
 
-  for i, data in enumerate(test_loader):
+  for i, data in enumerate(test_set):
     image, filename = data
+    image = image.unsqueeze(0)
     inputs_var = torch.autograd.Variable(image)
 
     predictions = model(inputs_var)
@@ -63,6 +63,8 @@ def main():
 
     if i % 100 == 0:
       print('Processed %d / %d' % (i, len(test_set)))
+
+  print('Finished preparing submission!')
 
 if __name__ == '__main__':
   main()

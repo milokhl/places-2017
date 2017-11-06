@@ -15,14 +15,6 @@ from utils import accuracy, AverageMeter, save_checkpoint
 import time
 import shutil
 
-# TODO
-# change STD values
-# figure out LR
-# modify architecture as needed?
-# other SGD params?
-# different optimizer?
-# different loss
-
 def main():
     # Apply a series of transformations to the input data.
     transform = transforms.Compose(

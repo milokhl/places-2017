@@ -48,6 +48,7 @@ class MiniPlacesTestSet(Dataset):
     """
     def __init__(self, images_dir, transform=None, outfile='./predictions.txt'):
         self.image_files = os.listdir(images_dir)
+        self.image_files.sort()
         self.transform = transform
         self.images_dir = images_dir
         self.outfile = outfile
@@ -64,5 +65,4 @@ class MiniPlacesTestSet(Dataset):
 
     def write_labels(self, filename, labels):
         with open(self.outfile, 'a') as f:
-            # For some reason, filename is a tuple
-            f.write('%s %d %d %d %d %d\n' % (str(filename[0]), labels[0], labels[1], labels[2], labels[3], labels[4]))
+            f.write('%s %d %d %d %d %d\n' % (filename, labels[0], labels[1], labels[2], labels[3], labels[4]))
