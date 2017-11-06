@@ -50,6 +50,7 @@ class MiniPlacesTestSet(Dataset):
         self.image_files = os.listdir(images_dir)
         self.transform = transform
         self.images_dir = images_dir
+        self.outfile = outfile
         print('Loaded MiniPlaces test set from: %s' % self.images_dir)
 
     def __len__(self):
@@ -63,4 +64,5 @@ class MiniPlacesTestSet(Dataset):
 
     def write_labels(self, filename, labels):
         with open(self.outfile, 'a') as f:
-            f.write('%s %s %s %s %s %s' % (filename, labels[0], labels[1], labels[2], labels[3], labels[4], labels[5]))
+            # For some reason, filename is a tuple
+            f.write('%s %d %d %d %d %d\n' % (str(filename[0]), labels[0], labels[1], labels[2], labels[3], labels[4]))

@@ -5,7 +5,7 @@
 # Your team code (case-sensitive) for submitting to the leaderboard is: fFR7jWuG2XqiAImnJQrN
 
 from __future__ import print_function, division
-import os, sys
+import os, sys, time
 import torch
 from PIL import Image
 import torchvision.transforms as transforms
@@ -15,7 +15,7 @@ from miniplaces_dataset import MiniPlacesTestSet
 
 import vgg_pytorch as VGG
 
-def main():''
+def main():
   # Apply same transforms to the test set as the training set, except without randomized cropping and flipping.
   transform = transforms.Compose(
       [transforms.Resize(224),
@@ -23,12 +23,17 @@ def main():''
       transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.229, 0.224, 0.225))])
 
   # Set up a test loader, which outputs image / filename pairs.
-  test_set = MiniPlacesTestSet('/home/milo/envs/tensorflow35/miniplaces/data/images/test/', transform=transform)
+
+  test_set = MiniPlacesTestSet('/home/milo/envs/tensorflow35/miniplaces/data/images/test/',
+            transform=transform, outfile=str(int(time.time())) + 'predictions.txt')
   test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False, num_workers=10)
 
   # Define the model.
   # Not using CUDA for now, so that we can run this while training.
   model = VGG.vgg11(num_classes=100)
+  model.features = torch.nn.DataParallel(model.features)
+  model.cuda()
+
   checkpoint_file = './model_best.pth.tar'
 
   # If checkpoint file is given, resume from there.
@@ -38,7 +43,6 @@ def main():''
     start_epoch = checkpoint['epoch']
     best_prec1 = checkpoint['best_prec1']
     model.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
-    optimizer.load_state_dict(checkpoint['optimizer'])
     print("Loaded checkpoint '{}' (epoch {}, best_prc1 {})".format(checkpoint_file, start_epoch, best_prec1))
   else:
     print("No checkpoint found at {}".format(checkpoint_file))
@@ -51,10 +55,14 @@ def main():''
     predictions = model(inputs_var)
     _, top5 = predictions.topk(5, 1, True, True)
     top5 = top5.t()
-    print('Top5:', top5)
+
+    labels = [top5.data[i][0] for i in range(5)]
 
     # Write the top 5 labels as a new line.
-    test_set.write_labels(filename, prediction)
+    test_set.write_labels(filename, labels)
+
+    if i % 100 == 0:
+      print('Processed %d / %d' % (i, len(test_set)))
 
 if __name__ == '__main__':
   main()
