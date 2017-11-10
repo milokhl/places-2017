@@ -28,7 +28,7 @@ def main():
 
     # Load in the training set.
     # Used 58 for VGG11
-    batch_size = 512 # TODO
+    batch_size = 20 # TODO
     training_set = MiniPlacesDataset(os.path.abspath('./../../data/train.txt'),
                                      os.path.abspath('./../../data/images/'),
                                      transform=transform)
