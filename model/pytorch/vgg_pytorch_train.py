@@ -10,10 +10,11 @@ import vgg_pytorch as VGG
 
 from miniplaces_dataset import *
 
-from utils import accuracy, AverageMeter, save_checkpoint
+from utils import accuracy, AverageMeter, save_checkpoint, log
 
 import time
 import shutil
+import datetime
 
 def main():
     # Apply a series of transformations to the input data.
@@ -51,8 +52,6 @@ def main():
     model.cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
-    # optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
-    # optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=1e-5)
 
     # Parameters
@@ -62,7 +61,6 @@ def main():
     is_best = True
     best_prec1 = 0
     checkpoint_file = './model_best.pth.tar'
-    # checkpoint_file = None
 
     # If checkpoint file is given, resume from there.
     if checkpoint_file != None:
@@ -74,7 +72,10 @@ def main():
             model.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("Loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
+            log("Loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
+
         else:
+            log("No checkpoint found at {}. Initializing from scratch.".format(checkpoint_file))
             print("No checkpoint found at {}. Initializing from scratch.".format(checkpoint_file))
 
     # Training + Validation + Saving loop.
@@ -135,19 +136,23 @@ def train(train_loader, model, criterion, optimizer, epoch, print_freq=1):
 
         # Print out metrics periodically.
         if i % print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+            print_str = 'Epoch: [{0}][{1}/{2}]\t' \
+                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                          'Data {data_time.val:.3f} ({data_time.avg:.3f})\t' \
+                          'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t' \
+                          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                           epoch, i, len(train_loader), batch_time=batch_time,
+                           data_time=data_time, loss=losses, top1=top1, top5=top5)
+            print(print_str)
+            log(print_str)
 
+    log('------------------ Finished Training epoch! -----------------------\n')
     print('Finished Training epoch!')
 
 def validate(val_loader, model, criterion, print_freq=1):
     print('Starting validation!')
+    log('------------------- Starting validation! -----------------------\n')
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -177,18 +182,22 @@ def validate(val_loader, model, criterion, print_freq=1):
         end = time.time()
 
         if i % print_freq == 0:
-            print('Validation: [{0}/{1}]\t'
-              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-              'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+            print_str = 'Validation: [{0}/{1}]\t'\
+              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'\
+              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'\
+              'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'\
               'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                i, len(val_loader), batch_time=batch_time, loss=losses,
-               top1=top1, top5=top5))
+               top1=top1, top5=top5)
+            print(print_str)
+            log(print_str)
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+    print_str = ' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'.format(top1=top1, top5=top5)
+    print(print_str)
+    log(print_str)
 
     print('Finished validation!')
+    log('--------------- Finished validation! ----------------- \n')
     return top1.avg
 
 if __name__ == '__main__':

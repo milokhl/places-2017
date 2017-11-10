@@ -1,6 +1,11 @@
 # Utils for pytorch training
 import shutil
 import torch
+import datetime
+
+def log(line, filename='logfile-02-01.txt'):
+    with open(filename, 'a') as f:
+        f.write('[%s] %s \n' % (datetime.datetime.now(), line))
 
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
@@ -36,7 +41,10 @@ class AverageMeter(object):
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     print('Saving checkpoint...')
-    if is_best: print('New best checkpoint!')
+    log('Saving checkpoint...')
+    if is_best:
+        print('New best checkpoint!')
+        log('New best checkpoint!')
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best16.pth.tar')
+        shutil.copyfile(filename, 'model_best.pth.tar')
