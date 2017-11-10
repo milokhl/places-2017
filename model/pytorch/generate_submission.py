@@ -23,7 +23,6 @@ def main():
       transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.229, 0.224, 0.225))])
 
   # Set up a test loader, which outputs image / filename pairs.
-
   test_set = MiniPlacesTestSet('/home/milo/envs/tensorflow35/miniplaces/data/images/test/',
             transform=transform, outfile=str(int(time.time())) + 'predictions.txt')
 

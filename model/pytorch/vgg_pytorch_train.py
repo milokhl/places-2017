@@ -25,6 +25,7 @@ def main():
     )
 
     # Load in the training set.
+    # Used 58 for VGG11
     batch_size = 58 # Run out of memory at 80
     training_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/train.txt',
                                      '/home/milo/envs/tensorflow35/miniplaces/data/images/',
@@ -36,28 +37,30 @@ def main():
     val_set = MiniPlacesDataset('/home/milo/envs/tensorflow35/miniplaces/data/val.txt',
                                 '/home/milo/envs/tensorflow35/miniplaces/data/images/',
                                 transform=transforms.Compose([
-                                    transforms.CenterCrop(224),
-                                    transforms.ToTensor(),
-                                    transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.5, 0.5, 0.5))]))
+                                transforms.CenterCrop(224),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.45834960097, 0.44674252445, 0.41352266842), (0.5, 0.5, 0.5))]))
 
     val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
     # Define the model, loss, and optimizer.
-    model = VGG.vgg11(num_classes=100)
+    model = VGG.vgg11_bn(num_classes=100)
     model.features = torch.nn.DataParallel(model.features)
     model.cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
     # optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
+    optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    # optimizer = optim.SGD(model.parameters(), lr=0.0005, momentum=0.9, nesterov=True)
 
     # Parameters
     start_epoch = 0
-    epochs = 10
+    epochs = 30
     print_freq = 20
     is_best = True
     best_prec1 = 0
-    checkpoint_file = './model_best.pth.tar'
+    # checkpoint_file = './model_best.pth.tar'
+    checkpoint_file = None
 
     # If checkpoint file is given, resume from there.
     if checkpoint_file != None:
@@ -67,7 +70,10 @@ def main():
             start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
+            # try:
             optimizer.load_state_dict(checkpoint['optimizer'])
+            # except:
+                # print('Did not find optimizer params in checkpoint, initializing these to starting values.')
             print("Loaded checkpoint '{}' (epoch {})".format(checkpoint_file, checkpoint['epoch']))
         else:
             print("No checkpoint found at {}".format(checkpoint_file))
