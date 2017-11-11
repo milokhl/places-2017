@@ -26,6 +26,7 @@ class VGG(nn.Module):
         self.features = features
         
         if light:
+            print('Using lightweight FC layers.')
             self.classifier = nn.Sequential(
                 nn.Linear(512 * 7 * 7, 512),
                 nn.ReLU(True),
@@ -138,6 +139,7 @@ def vgg13_bn(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
+    print('Using VGG13_BN')
     model = VGG(make_layers(cfg['B'], batch_norm=True), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg13_bn']))

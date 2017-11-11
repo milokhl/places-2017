@@ -6,12 +6,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+# Files in this directory.
 import vgg_pytorch as VGG
-
 from miniplaces_dataset import *
-
 from utils import accuracy, AverageMeter, save_checkpoint, log
 
+# Python builtin.
 import time
 import shutil
 import datetime
@@ -28,7 +28,6 @@ def main():
     )
 
     # Load in the training set.
-    # Used 58 for VGG11
     batch_size = 20 # TODO
     training_set = MiniPlacesDataset(os.path.abspath('./../../data/train.txt'),
                                      os.path.abspath('./../../data/images/'),
@@ -52,7 +51,7 @@ def main():
     model.cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=1e-5)
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
 
     # Parameters
     start_epoch = 0
