@@ -3,9 +3,11 @@
 
 # Your team, LaCroixNet, has been registered for the challenge.
 # Your team code (case-sensitive) for submitting to the leaderboard is: fFR7jWuG2XqiAImnJQrN
-
 from __future__ import print_function, division
 import os, sys, time
+
+sys.path.append('../')
+
 import torch
 from PIL import Image
 import torchvision.transforms as transforms
@@ -45,6 +47,8 @@ def main():
   else:
     print("No checkpoint found at {}".format(checkpoint_file))
     assert(False)
+
+  model.eval() # Set to eval mode to prevent dropout from occurring.
 
   for i, data in enumerate(test_set):
     image, filename = data

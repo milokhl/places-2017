@@ -1,3 +1,9 @@
+# Python builtin.
+import time
+import shutil
+import datetime
+import sys, os
+
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -7,14 +13,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 # Files in this directory.
+sys.path.append('../')
 import vgg_pytorch as VGG
 from miniplaces_dataset import *
 from utils import accuracy, AverageMeter, save_checkpoint, log
-
-# Python builtin.
-import time
-import shutil
-import datetime
 
 def main():
     # Apply a series of transformations to the input data.
@@ -29,15 +31,15 @@ def main():
 
     # Load in the training set.
     batch_size = 20 # TODO
-    training_set = MiniPlacesDataset(os.path.abspath('./../../data/train.txt'),
-                                     os.path.abspath('./../../data/images/'),
+    training_set = MiniPlacesDataset(os.path.abspath('./../../../data/train.txt'),
+                                     os.path.abspath('./../../../data/images/'),
                                      transform=transform)
 
     train_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
     # Load in the validation set.
-    val_set = MiniPlacesDataset(os.path.abspath('./../../data/val.txt'),
-                                os.path.abspath('./../../data/images/'),
+    val_set = MiniPlacesDataset(os.path.abspath('./../../../data/val.txt'),
+                                os.path.abspath('./../../../data/images/'),
                                 transform=transforms.Compose([
                                 transforms.CenterCrop(224),
                                 transforms.ToTensor(),
@@ -46,8 +48,9 @@ def main():
     val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
 
     # Define the model, loss, and optimizer.
-    model = VGG.vgg13_bn(num_classes=100)
+    model = VGG.vgg13(num_classes=100)
     model.features = torch.nn.DataParallel(model.features)
+    # model.cuda()
     model.cuda()
 
     criterion = nn.CrossEntropyLoss().cuda()
