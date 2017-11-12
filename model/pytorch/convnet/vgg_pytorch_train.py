@@ -35,7 +35,7 @@ def main():
                                      os.path.abspath('./../../../data/images/'),
                                      transform=transform)
 
-    train_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
+    train_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=4)
 
     # Load in the validation set.
     val_set = MiniPlacesDataset(os.path.abspath('./../../../data/val.txt'),
@@ -45,7 +45,7 @@ def main():
                                 transforms.ToTensor(),
                                 transforms.Normalize(mean, std)]))
 
-    val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=10)
+    val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=4)
 
     # Define the model, loss, and optimizer.
     model = VGG.vgg13(num_classes=100)

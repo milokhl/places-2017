@@ -21,6 +21,7 @@ class MiniPlacesDataset(Dataset):
         self.transform = transform
         self.root_dir = root_dir
         assert(len(self.lines) > 0)
+
         print('Loaded MiniPlacesDataset.')
 
     def __len__(self):
