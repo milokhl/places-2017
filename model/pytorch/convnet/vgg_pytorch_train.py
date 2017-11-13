@@ -50,8 +50,9 @@ def main():
     # Define the model, loss, and optimizer.
     model = VGG.vgg13(num_classes=100)
     model.features = torch.nn.DataParallel(model.features)
-    # model.cuda()
     model.cuda()
+    
+    print("Model Parameters:", sum(param.numel() for param in model.parameters()))
 
     criterion = nn.CrossEntropyLoss().cuda()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
