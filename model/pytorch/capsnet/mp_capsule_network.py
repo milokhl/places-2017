@@ -22,10 +22,11 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-BATCH_SIZE = 64 # TODO
+BATCH_SIZE = 8 # TODO
 NUM_CLASSES = 100
 NUM_EPOCHS = 500 # TODO
 NUM_ROUTING_ITERATIONS = 3
+CROP_SIZE = 28
 
 DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
 DATA_STD = (0.229, 0.224, 0.225)
@@ -96,73 +97,35 @@ class CapsuleLayer(nn.Module):
         return outputs
 
 
-class CapsuleNet(nn.Module):
-    def __init__(self):
-        super(CapsuleNet, self).__init__()
-
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=256, kernel_size=9, stride=1)
-        self.primary_capsules = CapsuleLayer(num_capsules=8, num_route_nodes=-1, in_channels=256, out_channels=32,
-                                             kernel_size=9, stride=2)
-        self.digit_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=32 * 6 * 6, in_channels=8,
-                                           out_channels=16)
-
-        # (28 - 9 + 2*0) / 1 + 1 = 20
-        # (20 - 9 + 2*0) / 2 + 1 = 6
-        self.decoder = nn.Sequential(
-            nn.Linear(16 * NUM_CLASSES, 512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, 1024),
-            nn.ReLU(inplace=True),
-            nn.Linear(1024, 784),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x, y=None):
-        x = F.relu(self.conv1(x), inplace=True)
-        x = self.primary_capsules(x)
-        x = self.digit_capsules(x).squeeze().transpose(0, 1)
-
-        classes = (x ** 2).sum(dim=-1) ** 0.5
-        classes = F.softmax(classes)
-
-        if y is None:
-            # In all batches, get the most active capsule.
-            _, max_length_indices = classes.max(dim=1)
-            y = Variable(torch.sparse.torch.eye(NUM_CLASSES)).cuda().index_select(dim=0, index=max_length_indices.data)
-
-        reconstructions = self.decoder((x * y[:, :, None]).view(x.size(0), -1))
-
-        return classes, reconstructions
-
-
 class PlacesCapsuleNet(nn.Module):
     def __init__(self):
-        super(PlacesCapsuleNet, self).__init__()
-
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=256, kernel_size=9, stride=1)
-
-        # (224 - 9 + 2*0) / 1 + 1
-        # Output Volume: 216 x 216 x 256
-        self.primary_capsules = CapsuleLayer(num_capsules=8, num_route_nodes=-1, in_channels=256, out_channels=32,
-                                             kernel_size=9, stride=2)
-
-        # Size conv output given by: (W−F+2P)/S+1
+        """
+        Size of convolution output given by: (W−F+2P) / S + 1.
         # W: input volume size
         # F: receptive field of conv neurons
         # S: stride
         # P: padding
-        # (216 - 9 + 2*0)/2 + 1 = 104
-        self.digit_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=32 * 104 * 104, in_channels=8,
-                                           out_channels=16)
+        """
+        super(PlacesCapsuleNet, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=256, kernel_size=9, stride=1)
+        print('Initialized conv1 layer.')
 
-        self.decoder = nn.Sequential(
-            nn.Linear(16 * NUM_CLASSES, 512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, 1024),
-            nn.ReLU(inplace=True),
-            nn.Linear(1024, 784),
-            nn.Sigmoid()
-        )
+        # (128 - 9 + 2*0) / 1 + 1 = 120
+        # (64 - 9) / 1 + 1 = 56
+        conv1_size = (CROP_SIZE - 9) // 1 + 1
+        print('conv1 size:', conv1_size)
+        self.primary_capsules = CapsuleLayer(num_capsules=8, num_route_nodes=-1, in_channels=256, out_channels=32,
+                                             kernel_size=9, stride=2)
+        print('Initialized primary capsule layer.')
+
+        # (120 - 9 + 2*0)/2 + 1 = 56
+        # 24
+        conv2_size = (conv1_size - 9) // 2 + 1
+        print('conv2 size:', conv2_size)
+        self.digit_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=32 * conv2_size * conv2_size, in_channels=8,
+                                           out_channels=16)
+        print('Initialized digit capsule layer.')
+        print('Initialized PlacesCapsuleNet!')
 
     def forward(self, x, y=None):
         x = F.relu(self.conv1(x), inplace=True)
@@ -177,7 +140,6 @@ class PlacesCapsuleNet(nn.Module):
             _, max_length_indices = classes.max(dim=1)
             y = Variable(torch.sparse.torch.eye(NUM_CLASSES)).cuda().index_select(dim=0, index=max_length_indices.data)
 
-        # reconstructions = self.decoder((x * y[:, :, None]).view(x.size(0), -1))
         reconstructions = None # Disabled for now.
 
         return classes, reconstructions
@@ -195,9 +157,7 @@ class CapsuleLoss(nn.Module):
         margin_loss = labels * left + 0.5 * (1. - labels) * right
         margin_loss = margin_loss.sum()
 
-        # reconstruction_loss = self.reconstruction_loss(reconstructions, images)
         return margin_loss / images.size(0) # Removed reconstruction loss for now.
-        # return (margin_loss + 0.0005 * reconstruction_loss) / images.size(0)
 
 
 if __name__ == "__main__":
@@ -207,15 +167,16 @@ if __name__ == "__main__":
     from torchnet.logger import VisdomPlotLogger, VisdomLogger
     from torchvision.utils import make_grid
     import torchvision.transforms as transforms
-    # from torchvision.datasets.mnist import MNIST # TODO
     from tqdm import tqdm
     import torchnet as tnt
 
     # Create the model.
-    model = CapsuleNet()
+    model = PlacesCapsuleNet()
+
     # Load from checkpoint here is needed.
     # model.load_state_dict(torch.load('epochs/epoch_327.pt'))
     model.cuda()
+
     print("# Parameters:", sum(param.numel() for param in model.parameters()))
     optimizer = Adam(model.parameters())
 
@@ -245,14 +206,14 @@ if __name__ == "__main__":
         """
         # dataset = MNIST(root='./data', download=True, train=mode) # TODO
         training_transforms = transforms.Compose(
-            [transforms.RandomResizedCrop(224),
+            [transforms.Resize(CROP_SIZE),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(DATA_MEAN, DATA_STD)]
         )
 
         validation_transforms = transforms.Compose([
-            transforms.CenterCrop(224),
+            transforms.Resize(CROP_SIZE),
             transforms.ToTensor(),
             transforms.Normalize(DATA_MEAN, DATA_STD)])
 
@@ -268,18 +229,10 @@ if __name__ == "__main__":
         # Replaced the TensorDataset with our own custom dataset.
         return torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=mode, num_workers=4)
 
-        # data = getattr(dataset, 'train_data' if mode else 'test_data')
-        # labels = getattr(dataset, 'train_labels' if mode else 'test_labels')
-        # tensor_dataset = tnt.dataset.TensorDataset([data, labels])
-        # return tensor_dataset.parallel(batch_size=BATCH_SIZE, num_workers=4, shuffle=mode)
-
-
     # This function takes in a sample of data and outputs the loss and outputs of the network.
     # The engine calls this function during training and testing loops.
     def processor(sample):
         data, labels, training = sample
-
-        # data = augmentation(data.unsqueeze(1).float() / 255.0) # Normalize the input image.
         labels = torch.LongTensor(labels)
         labels = torch.sparse.torch.eye(NUM_CLASSES).index_select(dim=0, index=labels)
 
@@ -337,18 +290,6 @@ if __name__ == "__main__":
             state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0]))
 
         torch.save(model.state_dict(), 'epochs/epoch_%d.pt' % state['epoch'])
-
-        # Reconstruction visualization.
-        # test_sample = next(iter(get_iterator(False)))
-
-        # ground_truth = (test_sample[0].unsqueeze(1).float() / 255.0)
-        # _, reconstructions = model(Variable(ground_truth).cuda())
-        # reconstruction = reconstructions.cpu().view_as(ground_truth).data
-
-        # ground_truth_logger.log(
-        #     make_grid(ground_truth, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
-        # reconstruction_logger.log(
-        #     make_grid(reconstruction, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
 
     # def on_start(state):
     #     state['epoch'] = 327
