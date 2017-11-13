@@ -22,11 +22,11 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-BATCH_SIZE = 8 # TODO
+BATCH_SIZE = 16 # TODO
 NUM_CLASSES = 100
 NUM_EPOCHS = 500 # TODO
-NUM_ROUTING_ITERATIONS = 3
-CROP_SIZE = 28
+NUM_ROUTING_ITERATIONS = 3 # TODO
+CROP_SIZE = 64
 
 DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
 DATA_STD = (0.229, 0.224, 0.225)
@@ -62,7 +62,6 @@ class CapsuleLayer(nn.Module):
 
         self.num_route_nodes = num_route_nodes
         self.num_iterations = num_iterations
-
         self.num_capsules = num_capsules
 
         if num_route_nodes != -1:
@@ -106,31 +105,47 @@ class PlacesCapsuleNet(nn.Module):
         # S: stride
         # P: padding
         """
+        # Conv1 Params
+        conv1_filters = 256
+        conv1_kernel_size = 9
+        conv1_stride = 2
+        conv1_size = (CROP_SIZE - conv1_kernel_size) // conv1_stride + 1
+
+        # Primary Capsule Params
+        cap1_units = 8
+        cap1_out_channels = 32
+        cap1_kernel_size = 9
+        cap1_stride = 2
+        conv2_size = (conv1_size - cap1_kernel_size) // cap1_stride + 1
+
+        # Secondary Capsule Params
+        cap2_units = 12
+        cap2_out_channels = 16
+
+        # Category Capsule Params
+        category_out_channels = 32
+
         super(PlacesCapsuleNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=256, kernel_size=9, stride=1)
-        print('Initialized conv1 layer.')
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=conv1_filters, kernel_size=conv1_kernel_size,
+                               stride=conv1_stride)
 
-        # (128 - 9 + 2*0) / 1 + 1 = 120
-        # (64 - 9) / 1 + 1 = 56
-        conv1_size = (CROP_SIZE - 9) // 1 + 1
-        print('conv1 size:', conv1_size)
-        self.primary_capsules = CapsuleLayer(num_capsules=8, num_route_nodes=-1, in_channels=256, out_channels=32,
-                                             kernel_size=9, stride=2)
-        print('Initialized primary capsule layer.')
+        self.primary_capsules = CapsuleLayer(num_capsules=cap1_units, num_route_nodes=-1, in_channels=conv1_filters,
+                                             out_channels=cap1_out_channels, kernel_size=cap1_kernel_size, stride=cap1_stride)
 
-        # (120 - 9 + 2*0)/2 + 1 = 56
-        # 24
-        conv2_size = (conv1_size - 9) // 2 + 1
-        print('conv2 size:', conv2_size)
-        self.digit_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=32 * conv2_size * conv2_size, in_channels=8,
-                                           out_channels=16)
-        print('Initialized digit capsule layer.')
+        self.digit_capsules = CapsuleLayer(num_capsules=cap2_units, num_route_nodes=cap1_out_channels * conv2_size * conv2_size,
+                                           in_channels=cap1_units, out_channels=cap2_out_channels)
+
+        self.category_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=cap2_units,
+                                              in_channels=cap2_out_channels, out_channels=category_out_channels)
+
         print('Initialized PlacesCapsuleNet!')
 
     def forward(self, x, y=None):
+        # Note: the transpose is needed to flip the batch size into the 0th dimension.
         x = F.relu(self.conv1(x), inplace=True)
         x = self.primary_capsules(x)
         x = self.digit_capsules(x).squeeze().transpose(0, 1)
+        x = self.category_capsules(x).squeeze().transpose(0, 1)
 
         classes = (x ** 2).sum(dim=-1) ** 0.5
         classes = F.softmax(classes)
@@ -177,7 +192,7 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load('epochs/epoch_327.pt'))
     model.cuda()
 
-    print("# Parameters:", sum(param.numel() for param in model.parameters()))
+    print("Model Parameters:", sum(param.numel() for param in model.parameters()))
     optimizer = Adam(model.parameters())
 
     engine = Engine()
