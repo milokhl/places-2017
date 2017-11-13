@@ -30,7 +30,7 @@ def main():
     )
 
     # Load in the training set.
-    batch_size = 20 # TODO
+    batch_size = 16 # TODO
     training_set = MiniPlacesDataset(os.path.abspath('./../../../data/train.txt'),
                                      os.path.abspath('./../../../data/images/'),
                                      transform=transform)
