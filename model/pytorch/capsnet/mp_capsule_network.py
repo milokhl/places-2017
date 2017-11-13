@@ -22,11 +22,11 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-BATCH_SIZE = 16 # TODO
+BATCH_SIZE = 12 # TODO
 NUM_CLASSES = 100
 NUM_EPOCHS = 500 # TODO
 NUM_ROUTING_ITERATIONS = 3 # TODO
-CROP_SIZE = 64
+CROP_SIZE = 128
 
 DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
 DATA_STD = (0.229, 0.224, 0.225)
@@ -115,11 +115,12 @@ class PlacesCapsuleNet(nn.Module):
         cap1_units = 8
         cap1_out_channels = 32
         cap1_kernel_size = 9
-        cap1_stride = 2
+        cap1_stride = 3
         conv2_size = (conv1_size - cap1_kernel_size) // cap1_stride + 1
+        print('Conv2 size:', conv2_size)
 
         # Secondary Capsule Params
-        cap2_units = 12
+        cap2_units = 10
         cap2_out_channels = 16
 
         # Category Capsule Params
@@ -132,7 +133,7 @@ class PlacesCapsuleNet(nn.Module):
         self.primary_capsules = CapsuleLayer(num_capsules=cap1_units, num_route_nodes=-1, in_channels=conv1_filters,
                                              out_channels=cap1_out_channels, kernel_size=cap1_kernel_size, stride=cap1_stride)
 
-        self.digit_capsules = CapsuleLayer(num_capsules=cap2_units, num_route_nodes=cap1_out_channels * conv2_size * conv2_size,
+        self.secondary_capsules = CapsuleLayer(num_capsules=cap2_units, num_route_nodes=cap1_out_channels * conv2_size * conv2_size,
                                            in_channels=cap1_units, out_channels=cap2_out_channels)
 
         self.category_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=cap2_units,
@@ -144,7 +145,7 @@ class PlacesCapsuleNet(nn.Module):
         # Note: the transpose is needed to flip the batch size into the 0th dimension.
         x = F.relu(self.conv1(x), inplace=True)
         x = self.primary_capsules(x)
-        x = self.digit_capsules(x).squeeze().transpose(0, 1)
+        x = self.secondary_capsules(x).squeeze().transpose(0, 1)
         x = self.category_capsules(x).squeeze().transpose(0, 1)
 
         classes = (x ** 2).sum(dim=-1) ** 0.5
