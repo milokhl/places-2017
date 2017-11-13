@@ -18,6 +18,8 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
+LOAD_EPOCH = None #'./epochs/epoch_3.pt'
+LOAD_EPOCH_NUM = 3
 BATCH_SIZE = 16
 NUM_CLASSES = 100
 NUM_EPOCHS = 50
@@ -123,6 +125,11 @@ class PlacesCapsuleNet(nn.Module):
         # Category Capsule Params
         category_out_channels = 16
 
+        # Decoder Params
+        hidden_units1 = 512
+        hidden_units2 = 512
+        reconstruction_dim = CROP_SIZE
+
         super(PlacesCapsuleNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=conv1_filters, kernel_size=conv1_kernel_size,
                                stride=conv1_stride)
@@ -135,6 +142,15 @@ class PlacesCapsuleNet(nn.Module):
 
         self.category_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=cap2_units,
                                               in_channels=cap2_out_channels, out_channels=category_out_channels)
+
+        self.decoder = nn.Sequential(
+            nn.Linear(category_out_channels * NUM_CLASSES, hidden_units1),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_units1, hidden_units2),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_units2, reconstruction_dim * reconstruction_dim * 3),
+            nn.Sigmoid()
+        )
 
         print('Initialized PlacesCapsuleNet!')
 
@@ -153,8 +169,8 @@ class PlacesCapsuleNet(nn.Module):
             _, max_length_indices = classes.max(dim=1)
             y = Variable(torch.sparse.torch.eye(NUM_CLASSES)).cuda().index_select(dim=0, index=max_length_indices.data)
 
-        reconstructions = None # Disabled for now.
-
+        # Run the output capsules through the decoder network to reconstruct the original image.
+        reconstructions = self.decoder((x * y[:, :, None]).view(x.size(0), -1))
         return classes, reconstructions
 
 
@@ -170,7 +186,11 @@ class CapsuleLoss(nn.Module):
         margin_loss = labels * left + 0.5 * (1. - labels) * right
         margin_loss = margin_loss.sum()
 
-        return margin_loss / images.size(0) # Removed reconstruction loss for now.
+        reconstruction_loss = self.reconstruction_loss(reconstructions, images)
+
+        return (margin_loss + 0.0005 * reconstruction_loss) / images.size(0)
+
+        # return margin_loss / images.size(0) # Removed reconstruction loss for now.
 
 
 if __name__ == "__main__":
@@ -187,12 +207,17 @@ if __name__ == "__main__":
     model = PlacesCapsuleNet()
 
     # Load from checkpoint here is needed.
-    # model.load_state_dict(torch.load('epochs/epoch_327.pt'))
+    if LOAD_EPOCH != None:
+        print('Loading model from epoch:', LOAD_EPOCH)
+        model.load_state_dict(torch.load(LOAD_EPOCH))
+
+    # CUDA that shit.
     model.cuda()
 
     print("Model Parameters:", sum(param.numel() for param in model.parameters()))
     optimizer = Adam(model.parameters())
 
+    # Create the torchnet engine and metrics.
     engine = Engine()
     meter_loss = tnt.meter.AverageValueMeter()
     meter_accuracy = tnt.meter.ClassErrorMeter(accuracy=True, topk=[1,5])
@@ -202,7 +227,6 @@ if __name__ == "__main__":
     train_loss_logger = VisdomPlotLogger('line', opts={'title': 'Train Loss'})
     train_accuracy_logger_top1 = VisdomPlotLogger('line', opts={'title': 'Train Accuracy (Top1)'})
     train_accuracy_logger_top5 = VisdomPlotLogger('line', opts={'title': 'Train Accuracy (Top5)'})
-
     test_loss_logger = VisdomPlotLogger('line', opts={'title': 'Test Loss'})
     test_accuracy_logger_top1 = VisdomPlotLogger('line', opts={'title': 'Test Accuracy (Top1)'})
     test_accuracy_logger_top5 = VisdomPlotLogger('line', opts={'title': 'Test Accuracy (Top5)'})
@@ -212,12 +236,13 @@ if __name__ == "__main__":
     ground_truth_logger = VisdomLogger('image', opts={'title': 'Ground Truth'})
     reconstruction_logger = VisdomLogger('image', opts={'title': 'Reconstruction'})
 
+    # Define the loss function.
     capsule_loss = CapsuleLoss()
 
 
     def get_iterator(mode):
         """
-        Returns an iterable TensorDataset.
+        Returns an iterable DataLoader object.
         @param mode (bool) True for training mode, False for testing mode.
         """
         training_transforms = transforms.Compose(
@@ -244,9 +269,12 @@ if __name__ == "__main__":
         # Replaced the TensorDataset with our own custom dataset.
         return torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=mode, num_workers=4)
 
-    # This function takes in a sample of data and outputs the loss and outputs of the network.
-    # The engine calls this function during training and testing loops.
+
     def processor(sample):
+        """
+        A function that takes in a sample of data and returns the network loss and outputs.
+        Called inside the training and testing loops of the engine.
+        """
         data, labels, training = sample
         labels = torch.LongTensor(labels)
         labels = torch.sparse.torch.eye(NUM_CLASSES).index_select(dim=0, index=labels)
@@ -264,7 +292,7 @@ if __name__ == "__main__":
 
         return loss, classes
 
-
+    # Called before the start of a training or validation epoch.
     def reset_meters():
         meter_accuracy.reset()
         meter_loss.reset()
@@ -287,7 +315,6 @@ if __name__ == "__main__":
             train_accuracy_logger_top1.log(state['t'], meter_accuracy.value()[0])
             train_accuracy_logger_top5.log(state['t'], meter_accuracy.value()[1])
 
-
     # Called at the start of each new epoch.
     def on_start_epoch(state):
         reset_meters()
@@ -296,9 +323,6 @@ if __name__ == "__main__":
 
     # Called at the end of every epoch.
     def on_end_epoch(state):
-        # print('[Epoch %d] Training Loss: %.4f (Accuracy: %.2f%%)' % (
-            # state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0]))
-
         reset_meters()
 
         # Validate the model after every training epoch.
@@ -313,12 +337,28 @@ if __name__ == "__main__":
 
         torch.save(model.state_dict(), 'epochs/epoch_%d.pt' % state['epoch'])
 
-    # def on_start(state):
-    #     state['epoch'] = 327
-    #
-    # engine.hooks['on_start'] = on_start
+        # Reconstruction visualization.
+        test_sample = next(iter(get_iterator(False)))
+        ground_truth = test_sample[0]
+
+        # ground_truth = (test_sample[0].unsqueeze(1).float() / 255.0)
+        _, reconstructions = model(Variable(ground_truth).cuda())
+        reconstruction = reconstructions.cpu().view_as(ground_truth).data
+
+        ground_truth_logger.log(
+            make_grid(ground_truth, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
+        reconstruction_logger.log(
+            make_grid(reconstruction, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
+
+
+    # Called when the engine first starts up.
+    def on_start(state):
+        if LOAD_EPOCH != None:
+            print('Setting the state epoch to:', LOAD_EPOCH_NUM)
+            state['epoch'] = LOAD_EPOCH_NUM
 
     # Set up hooks for the engine.
+    engine.hooks['on_start'] = on_start
     engine.hooks['on_sample'] = on_sample
     engine.hooks['on_forward'] = on_forward
     engine.hooks['on_start_epoch'] = on_start_epoch
