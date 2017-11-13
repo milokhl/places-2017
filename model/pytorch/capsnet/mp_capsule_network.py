@@ -22,7 +22,7 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-BATCH_SIZE = 12 # TODO
+BATCH_SIZE = 16 # TODO
 NUM_CLASSES = 100
 NUM_EPOCHS = 500 # TODO
 NUM_ROUTING_ITERATIONS = 3 # TODO
@@ -110,21 +110,22 @@ class PlacesCapsuleNet(nn.Module):
         conv1_kernel_size = 9
         conv1_stride = 2
         conv1_size = (CROP_SIZE - conv1_kernel_size) // conv1_stride + 1
+        print('Image size after conv1:', conv1_size)
 
         # Primary Capsule Params
-        cap1_units = 8
-        cap1_out_channels = 32
+        cap1_units = 32
+        cap1_out_channels = 8
         cap1_kernel_size = 9
         cap1_stride = 3
         conv2_size = (conv1_size - cap1_kernel_size) // cap1_stride + 1
-        print('Conv2 size:', conv2_size)
+        print('Image size after conv2:', conv2_size)
 
         # Secondary Capsule Params
-        cap2_units = 10
-        cap2_out_channels = 16
+        cap2_units = 16
+        cap2_out_channels = 8
 
         # Category Capsule Params
-        category_out_channels = 32
+        category_out_channels = 16
 
         super(PlacesCapsuleNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=conv1_filters, kernel_size=conv1_kernel_size,
