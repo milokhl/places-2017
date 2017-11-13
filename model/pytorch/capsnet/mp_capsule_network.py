@@ -2,15 +2,11 @@
 Dynamic Routing Between Capsules
 https://arxiv.org/abs/1710.09829
 
-PyTorch implementation by Kenta Iwasaki @ Gram.AI.
-"""
+MiniPlaces challenge: http://places.csail.mit.edu/
 
-# TODO
-# figure out how to get data into engine
-# figure out what params need to be change to accomodate 100 classes
-# figure out if reconstruction will work / be helpful
-# add more caps layers
-# add more augmentation
+Original PyTorch implementation by Kenta Iwasaki @ Gram.AI.
+Modified for MiniPlaces challenge by Milo Knowles.
+"""
 
 import sys, os
 
@@ -22,9 +18,9 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-BATCH_SIZE = 16 # TODO
+BATCH_SIZE = 16
 NUM_CLASSES = 100
-NUM_EPOCHS = 500 # TODO
+NUM_EPOCHS = 50
 NUM_ROUTING_ITERATIONS = 3 # TODO
 CROP_SIZE = 128
 
@@ -199,14 +195,17 @@ if __name__ == "__main__":
 
     engine = Engine()
     meter_loss = tnt.meter.AverageValueMeter()
-    meter_accuracy = tnt.meter.ClassErrorMeter(accuracy=True)
+    meter_accuracy = tnt.meter.ClassErrorMeter(accuracy=True, topk=[1,5])
     confusion_meter = tnt.meter.ConfusionMeter(NUM_CLASSES, normalized=True)
 
     # Create a bunch of loggers that can be viewed in the browser.
     train_loss_logger = VisdomPlotLogger('line', opts={'title': 'Train Loss'})
-    train_error_logger = VisdomPlotLogger('line', opts={'title': 'Train Accuracy'})
+    train_accuracy_logger_top1 = VisdomPlotLogger('line', opts={'title': 'Train Accuracy (Top1)'})
+    train_accuracy_logger_top5 = VisdomPlotLogger('line', opts={'title': 'Train Accuracy (Top5)'})
+
     test_loss_logger = VisdomPlotLogger('line', opts={'title': 'Test Loss'})
-    test_accuracy_logger = VisdomPlotLogger('line', opts={'title': 'Test Accuracy'})
+    test_accuracy_logger_top1 = VisdomPlotLogger('line', opts={'title': 'Test Accuracy (Top1)'})
+    test_accuracy_logger_top5 = VisdomPlotLogger('line', opts={'title': 'Test Accuracy (Top5)'})
     confusion_logger = VisdomLogger('heatmap', opts={'title': 'Confusion matrix',
                                                      'columnnames': list(range(NUM_CLASSES)),
                                                      'rownames': list(range(NUM_CLASSES))})
@@ -221,19 +220,18 @@ if __name__ == "__main__":
         Returns an iterable TensorDataset.
         @param mode (bool) True for training mode, False for testing mode.
         """
-        # dataset = MNIST(root='./data', download=True, train=mode) # TODO
         training_transforms = transforms.Compose(
             [transforms.Resize(CROP_SIZE),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(DATA_MEAN, DATA_STD)]
         )
-
         validation_transforms = transforms.Compose([
             transforms.Resize(CROP_SIZE),
             transforms.ToTensor(),
             transforms.Normalize(DATA_MEAN, DATA_STD)])
 
+        # Training and validation modes use different file paths.
         if mode:
             dataset = MiniPlacesDataset(os.path.abspath('./../../../data/train.txt'),
                                         os.path.abspath('./../../../data/images/'),
@@ -272,35 +270,42 @@ if __name__ == "__main__":
         meter_loss.reset()
         confusion_meter.reset()
 
+
     # Called every time the training loop requests a new batch.
     def on_sample(state):
         state['sample'].append(state['train'])
 
+
     # Called every time a batch is feed forward through the model.
-    def on_forward(state):
+    def on_forward(state, train_log_freq=10):
         meter_accuracy.add(state['output'].data, torch.LongTensor(state['sample'][1]))
         confusion_meter.add(state['output'].data, torch.LongTensor(state['sample'][1]))
         meter_loss.add(state['loss'].data[0])
+
+        if state['t'] % train_log_freq == 0:
+            train_loss_logger.log(state['t'], meter_loss.value()[0])
+            train_accuracy_logger_top1.log(state['t'], meter_accuracy.value()[0])
+            train_accuracy_logger_top5.log(state['t'], meter_accuracy.value()[1])
+
 
     # Called at the start of each new epoch.
     def on_start_epoch(state):
         reset_meters()
         state['iterator'] = tqdm(state['iterator'])
 
+
     # Called at the end of every epoch.
     def on_end_epoch(state):
-        print('[Epoch %d] Training Loss: %.4f (Accuracy: %.2f%%)' % (
-            state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0]))
-
-        train_loss_logger.log(state['epoch'], meter_loss.value()[0])
-        train_error_logger.log(state['epoch'], meter_accuracy.value()[0])
+        # print('[Epoch %d] Training Loss: %.4f (Accuracy: %.2f%%)' % (
+            # state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0]))
 
         reset_meters()
 
         # Validate the model after every training epoch.
         engine.test(processor, get_iterator(False))
         test_loss_logger.log(state['epoch'], meter_loss.value()[0])
-        test_accuracy_logger.log(state['epoch'], meter_accuracy.value()[0])
+        test_accuracy_logger_top1.log(state['epoch'], meter_accuracy.value()[0])
+        test_accuracy_logger_top5.log(state['epoch'], meter_accuracy.value()[1])
         confusion_logger.log(confusion_meter.value())
 
         print('[Epoch %d] Testing Loss: %.4f (Accuracy: %.2f%%)' % (
