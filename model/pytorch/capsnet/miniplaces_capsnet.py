@@ -342,8 +342,8 @@ if __name__ == "__main__":
         test_accuracy_logger_top5.log(state['epoch'], meter_accuracy.value()[1])
         confusion_logger.log(confusion_meter.value())
 
-        print('[Epoch %d] Testing Loss: %.4f (Accuracy: %.2f%%)' % (
-            state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0]))
+        print('[Epoch %d] Testing Loss: %.4f (Accuracy (top1): %.2f%% (top5): %.2f%%)' % (
+            state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0], meter_accuracy.value()[1]))
 
         torch.save(model.state_dict(), 'epochs/epoch_%d.pt' % state['epoch'])
 
@@ -374,5 +374,5 @@ if __name__ == "__main__":
     engine.hooks['on_start_epoch'] = on_start_epoch
     engine.hooks['on_end_epoch'] = on_end_epoch
 
-    # network, iterator, maxepoch, optimizer
+    # Network feedforward function, DataLoader object, maxepoch, optimizer
     engine.train(processor, get_iterator(True), maxepoch=NUM_EPOCHS, optimizer=optimizer)
