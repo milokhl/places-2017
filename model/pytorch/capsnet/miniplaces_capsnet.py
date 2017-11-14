@@ -361,9 +361,11 @@ if __name__ == "__main__":
                 make_grid(reconstruction, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
 
 
-    # Called when the engine first starts up.
+    # Called when the engine first starts up the training and testing loops.
     def on_start(state):
-        if LOAD_EPOCH != None:
+        # Want to only set the epoch when entering the training loop.
+        # Otherwise, epoch saves will get overwritten.
+        if LOAD_EPOCH != None and state['train'] == True:
             print('Setting the state epoch to:', LOAD_EPOCH_NUM)
             state['epoch'] = LOAD_EPOCH_NUM
 
