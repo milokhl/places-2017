@@ -18,8 +18,8 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-LOAD_EPOCH = None #'./epochs/epoch_3.pt'
-LOAD_EPOCH_NUM = 3
+LOAD_EPOCH = './epochs/epoch_4.pt'
+LOAD_EPOCH_NUM = 5 # This should be one more than the loaded epoch (because that one finished)
 BATCH_SIZE = 16
 NUM_CLASSES = 100
 NUM_EPOCHS = 50
@@ -95,7 +95,7 @@ class CapsuleLayer(nn.Module):
 
 
 class PlacesCapsuleNet(nn.Module):
-    def __init__(self):
+    def __init__(self, reconstruction=False):
         """
         Size of convolution output given by: (W−F+2P) / S + 1.
         # W: input volume size
@@ -103,6 +103,8 @@ class PlacesCapsuleNet(nn.Module):
         # S: stride
         # P: padding
         """
+        self.reconstruction = reconstruction
+
         # Conv1 Params
         conv1_filters = 256
         conv1_kernel_size = 9
@@ -143,14 +145,16 @@ class PlacesCapsuleNet(nn.Module):
         self.category_capsules = CapsuleLayer(num_capsules=NUM_CLASSES, num_route_nodes=cap2_units,
                                               in_channels=cap2_out_channels, out_channels=category_out_channels)
 
-        self.decoder = nn.Sequential(
-            nn.Linear(category_out_channels * NUM_CLASSES, hidden_units1),
-            nn.ReLU(inplace=True),
-            nn.Linear(hidden_units1, hidden_units2),
-            nn.ReLU(inplace=True),
-            nn.Linear(hidden_units2, reconstruction_dim * reconstruction_dim * 3),
-            nn.Sigmoid()
-        )
+        if reconstruction:
+            print('Building reconstruction layers.')
+            self.decoder = nn.Sequential(
+                nn.Linear(category_out_channels * NUM_CLASSES, hidden_units1),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden_units1, hidden_units2),
+                nn.ReLU(inplace=True),
+                nn.Linear(hidden_units2, reconstruction_dim * reconstruction_dim * 3),
+                nn.Sigmoid()
+            )
 
         print('Initialized PlacesCapsuleNet!')
 
@@ -170,7 +174,10 @@ class PlacesCapsuleNet(nn.Module):
             y = Variable(torch.sparse.torch.eye(NUM_CLASSES)).cuda().index_select(dim=0, index=max_length_indices.data)
 
         # Run the output capsules through the decoder network to reconstruct the original image.
-        reconstructions = self.decoder((x * y[:, :, None]).view(x.size(0), -1))
+        if self.reconstruction:
+            reconstructions = self.decoder((x * y[:, :, None]).view(x.size(0), -1))
+        else:
+            reconstructions = None
         return classes, reconstructions
 
 
@@ -186,7 +193,10 @@ class CapsuleLoss(nn.Module):
         margin_loss = labels * left + 0.5 * (1. - labels) * right
         margin_loss = margin_loss.sum()
 
-        reconstruction_loss = self.reconstruction_loss(reconstructions, images)
+        if reconstructions is None:
+            reconstruction_loss = 0
+        else:
+            reconstruction_loss = self.reconstruction_loss(reconstructions, images)
 
         return (margin_loss + 0.0005 * reconstruction_loss) / images.size(0)
 
@@ -341,14 +351,14 @@ if __name__ == "__main__":
         test_sample = next(iter(get_iterator(False)))
         ground_truth = test_sample[0]
 
-        # ground_truth = (test_sample[0].unsqueeze(1).float() / 255.0)
         _, reconstructions = model(Variable(ground_truth).cuda())
-        reconstruction = reconstructions.cpu().view_as(ground_truth).data
+        if reconstructions != None:
+            reconstruction = reconstructions.cpu().view_as(ground_truth).data
 
-        ground_truth_logger.log(
-            make_grid(ground_truth, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
-        reconstruction_logger.log(
-            make_grid(reconstruction, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
+            ground_truth_logger.log(
+                make_grid(ground_truth, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
+            reconstruction_logger.log(
+                make_grid(reconstruction, nrow=int(BATCH_SIZE ** 0.5), normalize=True, range=(0, 1)).numpy())
 
 
     # Called when the engine first starts up.
