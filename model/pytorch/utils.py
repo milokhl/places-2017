@@ -3,7 +3,7 @@ import shutil
 import torch
 import datetime
 
-def log(line, filename='logfile-02-02.txt'):
+def log(line, filename='logfile-03-01.txt'):
     with open(filename, 'a') as f:
         f.write('[%s] %s \n' % (datetime.datetime.now(), line))
 

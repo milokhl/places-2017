@@ -29,7 +29,10 @@ def main():
     DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
     DATA_STD = (0.229, 0.224, 0.225)
     CROP_SIZE = 120
-    batch_size = 80
+    batch_size = 200
+
+    print('Batch size:', batch_size)
+    print('Crop size:', CROP_SIZE)
 
     transform = transforms.Compose(
         [transforms.RandomSizedCrop(CROP_SIZE),
@@ -63,12 +66,12 @@ def main():
     print("Model Parameters:", sum(param.numel() for param in model.parameters()))
 
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
 
     # Parameters
     start_epoch = 0
     epochs = 30
-    print_freq = 20
+    print_freq = 10
     is_best = True
     best_prec1 = 0
     checkpoint_file = './model_best.pth.tar'
