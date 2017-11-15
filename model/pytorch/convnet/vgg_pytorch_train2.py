@@ -12,6 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+# Changes
+# FC layers have 1024 units instead of 512
+# Using Adam optimizer
+# Store top 5 with checkpoints.
+# Switched back to VGG11 feature detection.
+
 # Files in this directory.
 sys.path.append('../')
 import vgg_pytorch as VGG
@@ -26,7 +32,7 @@ def main():
     batch_size = 16
 
     transform = transforms.Compose(
-        [transforms.RandomSizedCrop(CROP_SIZE),
+        [transforms.RandomResizedCrop(CROP_SIZE),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(DATA_MEAN, DATA_STD)]
@@ -90,7 +96,7 @@ def main():
         train(train_loader, model, criterion, optimizer, epoch, print_freq=print_freq)
 
         # Every epoch, test on the validation data.
-        prec1 = validate(val_loader, model, criterion, print_freq=print_freq)
+        prec1, prec5 = validate(val_loader, model, criterion, print_freq=print_freq)
         is_best = prec1 > best_prec1 # Check if top1 precision has improved.
         best_prec1 = max(prec1, best_prec1)
 
@@ -100,6 +106,7 @@ def main():
             'arch': 'vgg',
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
+            'best_prec5': prec5,
             'optimizer' : optimizer.state_dict(),
         }, is_best)
 
@@ -203,7 +210,7 @@ def validate(val_loader, model, criterion, print_freq=1):
 
     print('Finished validation!')
     log('--------------- Finished validation! ----------------- \n')
-    return top1.avg
+    return top1.avg, top5.avg
 
 if __name__ == '__main__':
     main()
