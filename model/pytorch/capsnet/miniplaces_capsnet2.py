@@ -24,7 +24,7 @@ BATCH_SIZE = 4
 NUM_CLASSES = 100
 NUM_EPOCHS = 50
 NUM_ROUTING_ITERATIONS = 3
-CROP_SIZE = 80
+CROP_SIZE = 100
 
 DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
 DATA_STD = (0.229, 0.224, 0.225)
@@ -89,7 +89,7 @@ class PlacesCapsuleNet(nn.Module):
         self.reconstruction = reconstruction
 
         # Conv1 Params
-        conv1_filters = 128
+        conv1_filters = 256
         conv1_kernel_size = 9
         conv1_stride = 2
         conv1_size = (CROP_SIZE - conv1_kernel_size) // conv1_stride + 1
@@ -99,7 +99,7 @@ class PlacesCapsuleNet(nn.Module):
         cap1_units = 64
         cap1_out_channels = 8
         cap1_kernel_size = 9
-        cap1_stride = 2
+        cap1_stride = 3
         conv2_size = (conv1_size - cap1_kernel_size) // cap1_stride + 1
         print('Image size after conv2:', conv2_size)
 
@@ -113,7 +113,7 @@ class PlacesCapsuleNet(nn.Module):
 
         # Category Capsule Params
         category_cap_units = NUM_CLASSES
-        category_out_channels = 20
+        category_out_channels = 16
 
         # Decoder Params
         hidden_units1 = 512
@@ -244,7 +244,7 @@ if __name__ == "__main__":
         @param mode (bool) True for training mode, False for testing mode.
         """
         training_transforms = transforms.Compose(
-            [transforms.RandomResizedCrop(CROP_SIZE),
+            [transforms.RandomCrop(CROP_SIZE),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(DATA_MEAN, DATA_STD)]
