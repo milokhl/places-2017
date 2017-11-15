@@ -37,13 +37,13 @@ class VGG(nn.Module):
             )
         else:
             self.classifier = nn.Sequential(
-                nn.Linear(512 * 7 * 7, 4096),
+                nn.Linear(512 * 7 * 7, 1024),
                 nn.ReLU(True),
                 nn.Dropout(p=dropout),
-                nn.Linear(4096, 4096),
+                nn.Linear(1024, 1024),
                 nn.ReLU(True),
                 nn.Dropout(p=dropout),
-                nn.Linear(4096, num_classes),
+                nn.Linear(1024, num_classes),
             )
         self._initialize_weights()
 
