@@ -23,7 +23,7 @@ def main():
     mean = (0.45834960097, 0.44674252445, 0.41352266842)
     std = (0.229, 0.224, 0.225)
     transform = transforms.Compose(
-        [transforms.RandomResizedCrop(224),
+        [transforms.RandomSizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)]

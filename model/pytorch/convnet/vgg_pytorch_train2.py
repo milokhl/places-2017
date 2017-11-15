@@ -29,10 +29,10 @@ def main():
     DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
     DATA_STD = (0.229, 0.224, 0.225)
     CROP_SIZE = 120
-    batch_size = 16
+    batch_size = 80
 
     transform = transforms.Compose(
-        [transforms.RandomResizedCrop(CROP_SIZE),
+        [transforms.RandomSizedCrop(CROP_SIZE),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(DATA_MEAN, DATA_STD)]
@@ -56,14 +56,14 @@ def main():
     val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=4)
 
     # Define the model, loss, and optimizer.
-    model = VGG.vgg11(num_classes=100, dropout=0.5, light=False)
+    model = VGG.vgg11(num_classes=100, dropout=0.5, light=True)
     model.features = torch.nn.DataParallel(model.features)
     model.cuda()
     
     print("Model Parameters:", sum(param.numel() for param in model.parameters()))
 
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = Adam()
+    optimizer = optim.Adam(model.parameters())
 
     # Parameters
     start_epoch = 0
