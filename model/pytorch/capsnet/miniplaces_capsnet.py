@@ -18,8 +18,8 @@ import numpy as np
 sys.path.append('../')
 from miniplaces_dataset import *
 
-LOAD_EPOCH = './epochs/epoch_4.pt'
-LOAD_EPOCH_NUM = 5 # This should be one more than the loaded epoch (because that one finished)
+LOAD_EPOCH = None # './epochs/epoch_7.pt'
+LOAD_EPOCH_NUM = 7
 BATCH_SIZE = 16
 NUM_CLASSES = 100
 NUM_EPOCHS = 50
@@ -345,6 +345,7 @@ if __name__ == "__main__":
         print('[Epoch %d] Testing Loss: %.4f (Accuracy (top1): %.2f%% (top5): %.2f%%)' % (
             state['epoch'], meter_loss.value()[0], meter_accuracy.value()[0], meter_accuracy.value()[1]))
 
+        print('Saving model checkpoint: epochs/epoch_%d.pt' % state['epoch'])
         torch.save(model.state_dict(), 'epochs/epoch_%d.pt' % state['epoch'])
 
         # Reconstruction visualization.
