@@ -19,6 +19,8 @@ from miniplaces_dataset import *
 from utils import accuracy, AverageMeter, save_checkpoint, log
 
 def main():
+    log('Logging from file:', os.path.basename(__file__))
+
     # Apply a series of transformations to the input data.
     mean = (0.45834960097, 0.44674252445, 0.41352266842)
     std = (0.229, 0.224, 0.225)
