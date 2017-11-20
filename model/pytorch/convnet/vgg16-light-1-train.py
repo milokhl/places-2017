@@ -55,7 +55,7 @@ def main():
                                 transforms.ToTensor(),
                                 transforms.Normalize(DATA_MEAN, DATA_STD)]))
 
-    val_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True, num_workers=4)
+    val_loader = torch.utils.data.DataLoader(val_set, batch_size=batch_size, shuffle=True, num_workers=4)
 
     # Define the model, loss, and optimizer.
     model = VGG.vgg16(num_classes=100, dropout=0.5, light=True)
