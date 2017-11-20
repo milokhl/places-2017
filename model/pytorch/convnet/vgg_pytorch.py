@@ -27,7 +27,7 @@ class VGG(nn.Module):
         if light:
             print('Using lightweight FC layers.')
             self.classifier = nn.Sequential(
-                nn.Linear(4608, 512),
+                nn.Linear(8192, 512),
                 nn.ReLU(True),
                 nn.Dropout(p=dropout),
                 nn.Linear(512, 512),
