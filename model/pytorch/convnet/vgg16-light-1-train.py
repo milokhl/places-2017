@@ -26,7 +26,7 @@ def main():
     DATA_STD = (0.229, 0.224, 0.225)
     CROP_SIZE = 120
     batch_size = 200
-    brightness, contrast = 0.2, 0.2
+    brightness, contrast, saturation = 0.2, 0.2, 0.2
 
     print('Batch size:', batch_size)
     print('Crop size:', CROP_SIZE)
