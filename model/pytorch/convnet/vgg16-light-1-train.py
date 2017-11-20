@@ -26,6 +26,7 @@ def main():
     DATA_STD = (0.229, 0.224, 0.225)
     CROP_SIZE = 120
     batch_size = 200
+    brightness, contrast = 0.2, 0.2
 
     print('Batch size:', batch_size)
     print('Crop size:', CROP_SIZE)
@@ -33,6 +34,8 @@ def main():
     transform = transforms.Compose(
         [transforms.RandomResizedCrop(CROP_SIZE),
         transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ColorJitter(brightness = brightness, contrast = contrast, saturation = saturation)
         transforms.ToTensor(),
         transforms.Normalize(DATA_MEAN, DATA_STD)]
     )
