@@ -19,7 +19,7 @@ from miniplaces_dataset import *
 from utils import accuracy, AverageMeter, save_checkpoint, log
 
 def main():
-    log('Logging from file:', os.path.basename(__file__))
+    log('Logging from file:' % os.path.basename(__file__))
 
     # Apply a series of transformations to the input data.
     DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
@@ -32,10 +32,10 @@ def main():
     print('Crop size:', CROP_SIZE)
 
     transform = transforms.Compose(
-        [transforms.RandomResizedCrop(CROP_SIZE),
+        [transforms.RandomSizedCrop(CROP_SIZE),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.ColorJitter(brightness = brightness, contrast = contrast, saturation = saturation)
+        # transforms.RandomVerticalFlip(),
+        # transforms.ColorJitter(brightness = brightness, contrast = contrast, saturation = saturation)
         transforms.ToTensor(),
         transforms.Normalize(DATA_MEAN, DATA_STD)]
     )
