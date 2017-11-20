@@ -6,7 +6,8 @@
 from __future__ import print_function, division
 import os, sys, time
 
-sys.path.append('../')
+sys.path.append('./convnet')
+sys.path.append('./capsnet')
 
 import torch
 from PIL import Image
@@ -21,8 +22,8 @@ from utils import accuracy, AverageMeter, save_checkpoint, log
 
 def main():
 	BATCH_SIZE = 64
-	VGG_LOAD_EPOCH = './convnet/model_best.pth.tar'
-	CAPSNET_LOAD_EPOCH = './capsnet/epochs/epoch_16.pt'
+	VGG_LOAD_EPOCH = './final/model_best.pth.tar'
+	CAPSNET_LOAD_EPOCH = './final/epoch_16.pt'
 
 	# Apply a series of transformations to the input data.
 	DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
