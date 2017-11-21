@@ -21,48 +21,19 @@ from miniplaces_capsnet3 import PlacesCapsuleNet
 from miniplaces_dataset import *
 from utils import accuracy, AverageMeter, save_checkpoint, log
 
-def main():
-  BATCH_SIZE = 128
-  VGG_LOAD_EPOCH = './final/model_best.pth.tar'
-  CAPSNET_LOAD_EPOCH = './final/epoch_16.pt'
+BATCH_SIZE = 32
+VGG_LOAD_EPOCH = './final/model_best.pth.tar'
+CAPSNET_LOAD_EPOCH = './final/epoch_16.pt'
 
-  # Apply a series of transformations to the input data.
-  DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
-  DATA_STD = (0.229, 0.224, 0.225)
-  CROP_SIZE = 128
+# Apply a series of transformations to the input data.
+DATA_MEAN = (0.45834960097, 0.44674252445, 0.41352266842)
+DATA_STD = (0.229, 0.224, 0.225)
+CROP_SIZE = 128
 
-  # Set up VGG16
-  model_vgg16 = VGG.vgg16(num_classes=100, dropout=0.5, light=True)
-  model_vgg16.features = torch.nn.DataParallel(model_vgg16.features)
-  model_vgg16.cuda()
-
-  print("Loading VGG checkpoint '{}'".format(VGG_LOAD_EPOCH))
-  checkpoint = torch.load(VGG_LOAD_EPOCH)
-  start_epoch = checkpoint['epoch']
-  best_prec1 = checkpoint['best_prec1']
-  model_vgg16.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
-
-  # Set up the PlacesCapsuleNet
-  model_capsnet = PlacesCapsuleNet()
-  print('Loading capsule net model from epoch:', CAPSNET_LOAD_EPOCH)
-  state_dict = torch.load(CAPSNET_LOAD_EPOCH)
-  model_capsnet.load_state_dict(state_dict)
-  model_capsnet.cuda()
-
-  print('Batch size:', BATCH_SIZE)
-  print('Crop size:', CROP_SIZE)
-
-  # Load in the validation set.
-  val_set = MiniPlacesDataset(os.path.abspath('./../../data/val.txt'),
-                              os.path.abspath('./../../data/images/'),
-                              transform=transforms.Compose([
-                              transforms.CenterCrop(CROP_SIZE),
-                              transforms.ToTensor(),
-                              transforms.Normalize(DATA_MEAN, DATA_STD)]))
-
-  val_loader = torch.utils.data.DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
-
-  validate(val_loader, [model_vgg16, model_capsnet], print_freq=10)
+# Weights for ensembling.
+MODEL1_WEIGHT = 0.7
+MODEL2_WEIGHT = 0.3
+assert(MODEL1_WEIGHT + MODEL2_WEIGHT == 1.0)
 
 
 def validate(val_loader, models, print_freq=1):
@@ -70,8 +41,8 @@ def validate(val_loader, models, print_freq=1):
     model.eval()
 
   print('Starting validation of ensemble!')
-  model1_weight = torch.Tensor([0.5]).cuda()
-  model2_weight = torch.Tensor([0.5]).cuda()
+  model1_weight = torch.Tensor([MODEL1_WEIGHT]).cuda()
+  model2_weight = torch.Tensor([MODEL2_WEIGHT]).cuda()
 
   batch_time = AverageMeter()
   top1_ensemble = AverageMeter()
@@ -133,5 +104,83 @@ def validate(val_loader, models, print_freq=1):
   print('Finished validation!')
   return top1_ensemble.avg, top5_ensemble.avg
 
+
+def generate_submission(models, transforms_list, print_freq=100):
+
+  # Set up a test loader, which outputs image / filename pairs.
+  test_set = MiniPlacesTestSet('../../data/images/test/',
+                               transform=transforms.Compose(transforms_list),
+                               outfile=str(int(time.time())) + 'predictions.txt')
+  test_loader = torch.utils.data.DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+
+  # Switch models to eval mode.
+  for model in models:
+    model.eval()
+
+  print('Generating submission!')
+  model1_weight = torch.Tensor([MODEL1_WEIGHT]).cuda()
+  model2_weight = torch.Tensor([MODEL2_WEIGHT]).cuda()
+
+  for i, data in enumerate(test_loader):
+      image, filename = data
+      input_var = torch.autograd.Variable(image).cuda()
+
+      # Get outputs from each model in ensemble.
+      outputs = [model(input_var) for model in models]
+
+      # Weight each model and combine outputs.
+      # Add extra index to caps net because of reconstruction
+      ensemble_output = model1_weight * outputs[0].data + model2_weight * outputs[1][0].data
+
+      _, top5 = ensemble_output.topk(5, 1, True, True)
+      top5 = top5.t()
+
+      labels = [top5[i][0] for i in range(5)]
+
+      # Write the top 5 labels as a new line.
+      test_set.write_labels(filename, labels)
+
+      # Print statistacks.
+      if i % print_freq == 0:
+        print('Finished %d/%d' % (i, len(test_loader)))
+
+  print('Finished generating submission!')
+
+
 if __name__ == '__main__':
-  main()
+
+  # Set up VGG16
+  model_vgg16 = VGG.vgg16(num_classes=100, dropout=0.5, light=True)
+  model_vgg16.features = torch.nn.DataParallel(model_vgg16.features)
+  model_vgg16.cuda()
+  print("Loading VGG checkpoint '{}'".format(VGG_LOAD_EPOCH))
+  checkpoint = torch.load(VGG_LOAD_EPOCH)
+  start_epoch = checkpoint['epoch']
+  best_prec1 = checkpoint['best_prec1']
+  model_vgg16.load_state_dict(checkpoint['state_dict']) # Get frozen weights.
+
+  # Set up PlacesCapsuleNet
+  model_capsnet = PlacesCapsuleNet()
+  print('Loading capsule net model from epoch:', CAPSNET_LOAD_EPOCH)
+  state_dict = torch.load(CAPSNET_LOAD_EPOCH)
+  model_capsnet.load_state_dict(state_dict)
+  model_capsnet.cuda()
+
+  print('Batch size:', BATCH_SIZE)
+  print('Crop size:', CROP_SIZE)
+
+  # Set up datasets.
+  transforms_list = [transforms.CenterCrop(CROP_SIZE),
+                    transforms.ToTensor(),
+                    transforms.Normalize(DATA_MEAN, DATA_STD)]
+
+  # Uncomment below for validating.
+  # val_set = MiniPlacesDataset(os.path.abspath('./../../data/val.txt'),
+  #                             os.path.abspath('./../../data/images/'),
+  #                             transform=transforms.Compose(transforms_list))
+  # val_loader = torch.utils.data.DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+
+  # validate(val_loader, [model_vgg16, model_capsnet], print_freq=10)
+
+  # Uncomment for generating a submission file.
+  generate_submission([model_vgg16, model_capsnet], transforms_list)
