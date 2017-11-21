@@ -114,15 +114,20 @@ def validate(val_loader, models, print_freq=1):
 
       print_str = 'Validation: [%d/%d] \t Prec1(ens): %f (%f) Prec5(ens): %f (%f) \n' \
                   % (i, len(val_loader), top1_ensemble.val[0], top1_ensemble.avg[0], top5_ensemble.val[0], top5_ensemble.avg[0])
-      print_str += 'Prec1(m1): %f (%f) Prec5(m1): %f (%f) Prec1(m2): %f (%f) Prec5(m2): %f (%f)'\
-                  % (top1_model1.val[0], top1_model1.avg[0], top5_model2.val[0], top5_model1.avg[0],
+      print_str += 'Prec1(m1): %f (%f) Prec5(m1): %f (%f) \t Prec1(m2): %f (%f) Prec5(m2): %f (%f)'\
+                  % (top1_model1.val[0], top1_model1.avg[0], top5_model1.val[0], top5_model1.avg[0],
                     top1_model2.val[0], top1_model2.avg[0], top5_model2.val[0], top5_model2.avg[0])
 
       # Print statistacks.
       if i % print_freq == 0:
         print(print_str)
 
-  print_str = ' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'.format(top1=top1_ensemble, top5=top5_ensemble)
+  # Print out final statistacks.
+  print_str = 'Validation: [%d/%d] \t Prec1(ens): %f (%f) Prec5(ens): %f (%f) \n' \
+              % (i, len(val_loader), top1_ensemble.val[0], top1_ensemble.avg[0], top5_ensemble.val[0], top5_ensemble.avg[0])
+  print_str += 'Prec1(m1): %f (%f) Prec5(m1): %f (%f) Prec1(m2): %f (%f) Prec5(m2): %f (%f)'\
+              % (top1_model1.val[0], top1_model1.avg[0], top5_model1.val[0], top5_model1.avg[0],
+                top1_model2.val[0], top1_model2.avg[0], top5_model2.val[0], top5_model2.avg[0])
   print(print_str)
 
   print('Finished validation!')
