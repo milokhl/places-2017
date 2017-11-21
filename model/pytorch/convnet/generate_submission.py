@@ -62,7 +62,7 @@ def main():
     labels = [top5.data[i][0] for i in range(5)]
 
     # Write the top 5 labels as a new line.
-    test_set.write_labels(filename, labels)
+    test_set.write_labels('test/' + filename, labels)
 
     if i % 100 == 0:
       print('Processed %d / %d' % (i, len(test_set)))
