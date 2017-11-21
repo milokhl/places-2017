@@ -6,6 +6,10 @@ data/images
 data/objects
 *.h5
 
+*.txt
+epochs/
+epochs*/
+
 # tf checkpoints
 checkpoint
 *.data-*
