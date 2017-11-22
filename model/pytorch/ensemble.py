@@ -9,6 +9,7 @@
 # (N=0.5, H=0.5, V=0) : 72.459
 # (N=0.6, H=0.4) : 72.5
 # (N=0.333, H=0.333, V=0.333) : 71.139
+# (N=0.55, H=0.4, V=0.05) : 72.659
 
 from __future__ import print_function, division
 import os, sys, time
@@ -43,9 +44,9 @@ MODEL2_WEIGHT = 0.3
 assert(MODEL1_WEIGHT + MODEL2_WEIGHT == 1.0)
 
 # Weights for using image augmentation for validation / testing.
-WEIGHT_NORMAL = 0.333
-WEIGHT_HORIZ = 0.333
-WEIGHT_VERT = 0.333
+WEIGHT_NORMAL = 0.55
+WEIGHT_HORIZ = 0.4
+WEIGHT_VERT = 0.05
 
 print('WEIGHT_NORMAL: %f WEIGHT_HORIZ: %f WEIGHT_VERT: %f' % (WEIGHT_NORMAL, WEIGHT_HORIZ, WEIGHT_VERT))
 
