@@ -31,7 +31,7 @@ def main():
     print('Crop size:', CROP_SIZE)
 
     transform = transforms.Compose(
-        [transforms.RandomResizedCrop(CROP_SIZE),
+        [transforms.RandomSizedCrop(CROP_SIZE),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(DATA_MEAN, DATA_STD)]
@@ -62,7 +62,7 @@ def main():
     print("Model Parameters:", sum(param.numel() for param in model.parameters()))
 
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, nesterov=True)
+    optimizer = optim.SGD(model.parameters(), lr=0.00001, momentum=0.9, nesterov=True)
 
     # Parameters
     start_epoch = 0
